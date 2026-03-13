@@ -142,27 +142,36 @@ tdsql-mcp --uri "teradata://me:secret@myhost/mydb" --read-only
 ### Install from source (with virtual environment)
 
 ```bash
-# Clone and enter the project directory
-git clone <repo-url>
-cd sql_mcp
+# Clone the repository
+git clone https://github.com/ksturgeon-td/tdsql-mcp.git
+cd tdsql-mcp
 
-# Create and activate a virtual environment
+# Create a virtual environment
 python3 -m venv .venv
+
+# Activate it
 source .venv/bin/activate        # macOS / Linux
 # .venv\Scripts\activate         # Windows
 
-# Install in editable mode (code and syntax file changes take effect immediately)
+# Install in editable mode
+# Code and syntax file changes take effect immediately — no reinstall needed
 pip install -e .
 
-# Set up your connection
+# Set up your connection credentials
 cp .env.example .env
-# Edit .env and fill in your DATABASE_URI
+# Edit .env and set DATABASE_URI to your Teradata connection string
 
-# Run
+# Run the server
 tdsql-mcp
 ```
 
-To install from a pinned snapshot instead of resolving fresh:
+To deactivate the virtual environment when you're done:
+
+```bash
+deactivate
+```
+
+To install from the pinned `requirements.txt` snapshot instead of resolving fresh dependencies:
 
 ```bash
 pip install -r requirements.txt
