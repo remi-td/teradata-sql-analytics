@@ -78,6 +78,79 @@ FORMAT 'ZZZ,ZZ9.99'      -- suppress leading zeros, add comma, 2 decimal places
 FORMAT '999,999,990.00'  -- fixed-width with comma grouping
 ```
 
+## TD_ConvertTo — Supported Target Data Types
+
+Used with the `TD_ConvertTo` function. See `data-cleaning` topic for full syntax.
+
+### Simple types (output precision is fixed)
+| TargetDataType value | Output type |
+|----------------------|-------------|
+| `BYTEINT` | `BYTEINT` |
+| `SMALLINT` | `SMALLINT` |
+| `INTEGER` | `INTEGER` |
+| `BIGINT` | `BIGINT` |
+| `REAL` | `REAL` |
+| `DECIMAL` | `DECIMAL(total_digits, precision)` — up to 38 total digits, 19 precision |
+| `DATE` | `DATE FORMAT 'YYYY/MM/DD'` |
+| `TIME` | `TIME(6)` |
+| `TIMESTAMP` | `TIMESTAMP(6)` |
+| `TIME WITH ZONE` | `TIME(6) WITH ZONE` |
+| `TIMESTAMP WITH ZONE` | `TIMESTAMP(6) WITH ZONE` |
+| `INTERVAL YEAR` | `INTERVAL YEAR(4)` |
+| `INTERVAL MONTH` | `INTERVAL MONTH(4)` |
+| `INTERVAL DAY` | `INTERVAL DAY(4)` |
+| `INTERVAL HOUR` | `INTERVAL HOUR(4)` |
+| `INTERVAL MINUTE` | `INTERVAL MINUTE(4)` |
+| `INTERVAL SECOND` | `INTERVAL SECOND(4,6)` |
+| `INTERVAL YEAR TO MONTH` | `INTERVAL YEAR(4) TO MONTH` |
+| `INTERVAL DAY TO HOUR` | `INTERVAL DAY(4) TO HOUR` |
+| `INTERVAL DAY TO MINUTE` | `INTERVAL DAY(4) TO MINUTE` |
+| `INTERVAL DAY TO SECOND` | `INTERVAL DAY(4) TO SECOND(6)` |
+| `INTERVAL HOUR TO MINUTE` | `INTERVAL HOUR(4) TO MINUTE` |
+| `INTERVAL HOUR TO SECOND` | `INTERVAL HOUR(4) TO SECOND(6)` |
+| `INTERVAL MINUTE TO SECOND` | `INTERVAL MINUTE(4) TO SECOND(6)` |
+| `BYTE` | `BYTE(32000)` |
+| `BYTE(charlen=len)` | `BYTE(len)` |
+| `VARBYTE` | `VARBYTE(32000)` |
+| `VARBYTE(charlen=len)` | `VARBYTE(len)` |
+| `BLOB` | `BLOB(2097088000)` |
+| `BLOB(charlen=len)` | `BLOB(len)` |
+| `JSON` | `JSON(32000), CHARACTER SET UNICODE` |
+| `XML` | `XML(2097088000) INLINE LENGTH 4046` |
+
+### VARCHAR — output depends on input type
+| Input type | Output type |
+|------------|-------------|
+| `VARCHAR` | `VARCHAR` with same CHARLEN, CHARACTER SET, and CASESPECIFIC |
+| `CHAR` | `VARCHAR(32000)` with same CHARACTER SET and CASESPECIFIC |
+| `CLOB` | `VARCHAR(32000)` with same CHARACTER SET, NOT CASESPECIFIC |
+| Other | `VARCHAR(32000)`, CHARACTER SET UNICODE, NOT CASESPECIFIC |
+
+Parameterized: `VARCHAR(charlen=len, charset={LATIN|UNICODE}, casespecific={YES|NO})`
+→ `VARCHAR(len)` with specified CHARACTER SET and CASESPECIFIC.
+
+### CHAR — output depends on input type
+| Input type | Output type |
+|------------|-------------|
+| `CHAR` | `CHAR` with same CHARLEN, CHARACTER SET, and CASESPECIFIC |
+| `VARCHAR` | `CHAR(32000)` with same CHARACTER SET and CASESPECIFIC |
+| `CLOB` | `CHAR(32000)` with same CHARACTER SET, NOT CASESPECIFIC |
+| Other | `CHAR(32000)`, CHARACTER SET UNICODE, NOT CASESPECIFIC |
+
+Parameterized: `CHAR(charlen=len, charset={LATIN|UNICODE}, casespecific={YES|NO})`
+→ `CHAR(len)` with specified CHARACTER SET and CASESPECIFIC.
+
+### CLOB — output depends on input type
+| Input type | Output type |
+|------------|-------------|
+| `CLOB` | `CLOB` with same CHARLEN and CHARACTER SET |
+| `VARCHAR` or `CHAR` | `CLOB(1048544000)` with same CHARACTER SET |
+| Other | `CLOB(1048544000)`, CHARACTER SET UNICODE |
+
+Parameterized: `CLOB(charlen=len, charset={LATIN|UNICODE})`
+→ `CLOB(len)` with specified CHARACTER SET.
+Note: CLOB LATIN/UTF16 is only supported on the Block File System on the primary cluster.
+
 ## Implicit Conversion Gotchas
 - `CHAR` comparisons pad with spaces: `'abc' = 'abc   '` is TRUE
 - Date arithmetic returns `INTEGER` (number of days): `end_date - start_date`

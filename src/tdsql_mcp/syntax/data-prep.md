@@ -101,31 +101,6 @@ SELECT * FROM TD_OneHotEncode(
 
 ---
 
-## Handling Missing Values
-
-### Impute with Mean/Median
-```sql
-SELECT id,
-       COALESCE(amount, AVG(amount) OVER ()) AS amount_imputed
-FROM db.table;
-
--- Median imputation
-SELECT id,
-       COALESCE(amount, APPROX_PERCENTILE(amount, 0.5) OVER ()) AS amount_imputed
-FROM db.table;
-```
-
-### TD_FillRowsWithMissing / TD_Impute (Vantage)
-```sql
-SELECT * FROM TD_Impute(
-    ON (SELECT * FROM db.table)
-    USING
-        TargetColumns('col1', 'col2')
-        ImputeType('mean')    -- 'mean', 'median', 'mode', 'literal'
-) AS t;
-```
-
----
 
 ## Reshaping
 

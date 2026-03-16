@@ -24,27 +24,8 @@ SELECT
     MIN(amount) AS min_val,
     MAX(amount) AS max_val,
     AVG(amount) AS avg_val,
-    STDDEV_SAMP(amount) AS stddev,
-    APPROX_PERCENTILE(amount, 0.25) AS p25,
-    APPROX_PERCENTILE(amount, 0.50) AS median,
-    APPROX_PERCENTILE(amount, 0.75) AS p75
+    STDDEV_SAMP(amount) AS stddev
 FROM db.table;
-```
-
-## TD_ANALYZE (Teradata Vantage)
-Automated column-level statistics:
-```sql
--- Profile all columns in a table
-SELECT * FROM TD_ANALYZE(
-    ON (SELECT * FROM db.table)
-    USING
-        TargetColumns('col1', 'col2', 'col3')
-        StatisticsTypes('BASIC', 'QUANTILE', 'CARDINALITY')
-) AS t;
-
--- BASIC: count, nulls, min, max, mean, stddev
--- QUANTILE: percentiles
--- CARDINALITY: distinct count, most frequent values
 ```
 
 ## Frequency Distribution
@@ -143,20 +124,181 @@ WHERE DatabaseName = 'mydb'
 ORDER BY SumPerm DESC;
 ```
 
-## Outlier Detection
+## MovingAverage
 ```sql
--- IQR method: flag outliers beyond 1.5 × IQR
-WITH stats AS (
-    SELECT
-        APPROX_PERCENTILE(amount, 0.25) AS q1,
-        APPROX_PERCENTILE(amount, 0.75) AS q3
+-- Simple moving average (most common)
+SELECT * FROM MovingAverage(
+    ON { db.table | db.view | (query) } AS InputTable
+    PARTITION BY partition_col
+    ORDER BY date_col
+    USING
+        MAvgType('S')
+        TargetColumns('amount')
+        WindowSize(3)
+) AS t;
+
+-- Exponential moving average (with optional tuning)
+SELECT * FROM MovingAverage(
+    ON { db.table | db.view | (query) } AS InputTable
+    PARTITION BY partition_col
+    ORDER BY date_col
+    USING
+        MAvgType('E')
+        TargetColumns('amount')
+        Alpha(0.2)
+        StartRows(2)
+        IncludeFirst('true')
+) AS t;
+
+-- MAvgType options:
+--   'C' = Cumulative (default)
+--   'E' = Exponential  (uses Alpha, StartRows, IncludeFirst)
+--   'M' = Modified     (uses WindowSize, IncludeFirst)
+--   'S' = Simple       (uses WindowSize, IncludeFirst)
+--   'T' = Triangular   (uses WindowSize, IncludeFirst)
+--   'W' = Weighted     (uses WindowSize, IncludeFirst)
+```
+
+## TD_CategoricalSummary
+```sql
+SELECT * FROM TD_CategoricalSummary(
+    ON { db.table | db.view | (query) } AS InputTable
+    USING
+        TargetColumns('cat_col1', 'cat_col2')         -- explicit columns
+        -- or: TargetColumns('[1:5]')                 -- column range by position
+) AS t;
+```
+
+## TD_ColumnSummary
+```sql
+SELECT * FROM TD_ColumnSummary(
+    ON { db.table | db.view | (query) } AS InputTable
+    USING
+        TargetColumns('col1', 'col2')                 -- explicit columns
+        -- or: TargetColumns('[1:5]')                 -- column range by position
+) AS t;
+```
+
+## TD_GetRowsWithMissingValues
+```sql
+SELECT * FROM TD_GetRowsWithMissingValues(
+    ON { db.table | db.view | (query) } AS InputTable
+    PARTITION BY ANY
+    ORDER BY id_col
+    USING
+        TargetColumns('col1', 'col2')                 -- explicit columns
+        -- or: TargetColumns('[1:5]')                 -- column range by position
+        -- Accumulate('id_col', 'date_col')           -- optional: columns to pass through to output
+) AS t;
+```
+
+## TD_Histogram
+```sql
+-- Auto-binning (Sturges or Scott method)
+SELECT * FROM TD_Histogram(
+    ON { db.table | db.view | (query) } AS InputTable
+    USING
+        MethodType('Sturges')                         -- or 'Scott'
+        TargetColumn('amount')
+        GroupbyColumns('region')                      -- optional: histogram per group
+) AS t;
+
+-- Equal-width bins with explicit count (multiple target columns)
+SELECT * FROM TD_Histogram(
+    ON { db.table | db.view | (query) } AS InputTable
+    ON { db.minmax_table | db.view | (query) } AS MinMax DIMENSION
+    USING
+        MethodType('Equal-Width')
+        TargetColumn('amount', 'price')
+        NBins(10, 20)                                 -- one per target column
+        Inclusion('left', 'right')                    -- one per target column: 'left' or 'right'
+        GroupbyColumns('region')                      -- optional
+) AS t;
+
+-- Variable-width bins (bin boundaries defined in MinMax table)
+SELECT * FROM TD_Histogram(
+    ON { db.table | db.view | (query) } AS InputTable
+    ON { db.minmax_table | db.view | (query) } AS MinMax DIMENSION
+    USING
+        MethodType('Variable-Width')
+        TargetColumn('amount')
+) AS t;
+
+-- MinMax table schema for Equal-Width:    (ColumnName, MinValue, MaxValue)
+-- MinMax table schema for Variable-Width: (ColumnName, MinValue, MaxValue, Label)
+```
+
+## TD_QQNorm
+Checks whether a column follows a normal distribution by comparing its quantiles to theoretical
+normal quantiles. Requires pre-computed rank columns — use RANK() or ROW_NUMBER() in a subquery.
+```sql
+-- Step 1: pre-compute ranks
+WITH ranked AS (
+    SELECT amount,
+           RANK() OVER (ORDER BY amount) AS amount_rank
     FROM db.table
+    WHERE amount IS NOT NULL
 )
-SELECT t.*,
-       CASE WHEN t.amount < s.q1 - 1.5 * (s.q3 - s.q1)
-              OR t.amount > s.q3 + 1.5 * (s.q3 - s.q1)
-            THEN 1 ELSE 0 END AS is_outlier
-FROM db.table t CROSS JOIN stats s;
+-- Step 2: pass ranked data to TD_QQNorm
+SELECT * FROM TD_QQNorm(
+    ON ranked AS InputTable
+    PARTITION BY ANY
+    ORDER BY amount_rank
+    USING
+        TargetColumns('amount')
+        RankColumns('amount_rank')
+        -- OutputColumns('amount_theoretical_q')      -- optional: default is amount_theoretical_quantiles
+        -- Accumulate('id_col')                       -- optional: columns to pass through to output
+) AS t;
+```
+
+## TD_UnivariateStatistics
+```sql
+-- Default: computes all statistics
+SELECT * FROM TD_UnivariateStatistics(
+    ON { db.table | db.view | (query) } AS InputTable
+    PARTITION BY ANY
+    USING
+        TargetColumns('col1', 'col2')                 -- explicit columns or range
+        PartitionColumns('group_col')                 -- optional: stats per group
+) AS t;
+
+-- Selective statistics with optional tuning
+SELECT * FROM TD_UnivariateStatistics(
+    ON { db.table | db.view | (query) } AS InputTable
+    PARTITION BY ANY
+    USING
+        TargetColumns('col1', 'col2')
+        PartitionColumns('group_col')                 -- optional: stats per group
+        Stats('MEAN', 'STD', 'MEDIAN', 'IQR',
+              'PERCENTILES', 'SKEWNESS', 'KURTOSIS')  -- default: 'ALL'
+        Centiles(10, 25, 50, 75, 90)                  -- optional: used with PERCENTILES or ALL
+                                                      -- default: 1,5,10,25,50,75,90,95,99
+        TrimPercentile(20)                            -- optional: used with TRIMMED MEAN or ALL
+                                                      -- default: 20, range [1,50]
+) AS t;
+```
+
+## TD_WhichMax / TD_WhichMin
+Returns all rows where the target column equals its maximum (or minimum) value. TargetColumn is singular.
+```sql
+-- Returns all rows where target_column equals its maximum value
+SELECT * FROM TD_WhichMax(
+    ON { db.table | db.view | (query) } AS InputTable
+    PARTITION BY ANY
+    ORDER BY order_col
+    USING
+        TargetColumn('amount')                        -- single column only
+) AS t;
+
+-- Returns all rows where target_column equals its minimum value
+SELECT * FROM TD_WhichMin(
+    ON { db.table | db.view | (query) } AS InputTable
+    PARTITION BY ANY
+    ORDER BY order_col
+    USING
+        TargetColumn('amount')                        -- single column only
+) AS t;
 ```
 
 ## Duplicate Detection

@@ -21,8 +21,10 @@ Use `get_syntax_help(topic="<name>")` to load any topic below.
 ## Analytics & ML
 | Topic | Description |
 |-------|-------------|
+| `fit-transform-pattern` | Reusable two-phase pattern: Fit learns from training data, Transform applies to new data |
 | `ml-functions` | Vantage ML: TD_XGBoost, TD_DecisionForest, TD_LogReg, scoring |
-| `data-exploration` | Descriptive stats, TD_ANALYZE, SAMPLE, histogram, correlation |
+| `data-exploration` | Descriptive stats, sampling, histogram, correlation, MovingAverage, TD_UnivariateStatistics, TD_Histogram, TD_QQNorm |
+| `data-cleaning` | NULL handling, deduplication, string cleaning, outlier detection, type validation |
 | `data-prep` | Feature engineering, binning, encoding, TD_Unpivot, normalization |
 
 ## Reference
