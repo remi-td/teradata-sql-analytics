@@ -30,6 +30,7 @@ Use `get_syntax_help(topic="<name>")` to load any topic below.
 | `text-analytics` | Text tokenization, classification, and entity extraction: TD_NgramSplitter, TD_NaiveBayesTextClassifier, TD_NERExtractor |
 | `hypothesis-testing` | Statistical hypothesis tests: TD_ANOVA, TD_ChiSq, TD_FTest, TD_ZTest |
 | `association-analysis` | Frequent itemset mining and collaborative filtering: TD_Apriori, TD_CFilter |
+| `path-analysis` | Event sequence analysis: Attribution, Sessionize, nPath |
 
 ## Reference
 | Topic | Description |
