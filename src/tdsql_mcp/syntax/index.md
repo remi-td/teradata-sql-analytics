@@ -28,6 +28,7 @@ Use `get_syntax_help(topic="<name>")` to load any topic below.
 | `data-prep` | Feature engineering: binning, encoding, scaling, pivoting, polynomial features, dimensionality reduction, Fit/Transform pairs |
 | `utility-functions` | TD_FillRowID, TD_NumApply, TD_RoundColumns, TD_StrApply |
 | `text-analytics` | Text tokenization, classification, and entity extraction: TD_NgramSplitter, TD_NaiveBayesTextClassifier, TD_NERExtractor |
+| `hypothesis-testing` | Statistical hypothesis tests: TD_ANOVA, TD_ChiSq, TD_FTest, TD_ZTest |
 
 ## Reference
 | Topic | Description |
