@@ -32,12 +32,29 @@ Use `get_syntax_help(topic="<name>")` to load any topic below.
 | `association-analysis` | Frequent itemset mining and collaborative filtering: TD_Apriori, TD_CFilter |
 | `path-analysis` | Event sequence analysis: Attribution, Sessionize, nPath |
 | `model-evaluation` | Model evaluation and explainability: TD_TrainTestSplit, TD_ClassificationEvaluator, TD_RegressionEvaluator, TD_ROC, TD_Silhouette, TD_SHAP |
+| `ml-patterns` | End-to-end ML pipeline patterns: CTE prediction pipeline, elbow method, train/evaluate/retrain loop, class imbalance workflow, micromodeling |
 
 ## Reference
 | Topic | Description |
 |-------|-------------|
 | `catalog-views` | DBC.* system views for schema discovery |
 | `query-tuning` | EXPLAIN, PI design, collect stats, query rewrite tips |
+
+---
+
+## Workflows — Start Here for Common Use Cases
+
+Recommended topic reading order for common end-to-end tasks. Load these topics in sequence for full context.
+
+| Use Case | Topic sequence |
+|----------|---------------|
+| **Classification (fraud, churn, risk)** | `data-exploration` → `data-cleaning` → `data-prep` → `fit-transform-pattern` → `ml-functions` → `model-evaluation` → `ml-patterns` |
+| **Regression (price, demand, forecast)** | `data-exploration` → `data-cleaning` → `data-prep` → `ml-functions` → `model-evaluation` → `ml-patterns` |
+| **Clustering (segmentation)** | `data-exploration` → `data-prep` → `ml-functions` → `ml-patterns` (elbow method) → `model-evaluation` (Silhouette) |
+| **Operationalize a trained model** | `fit-transform-pattern` → `ml-patterns` (CTE prediction pipeline) |
+| **Text classification / NLP** | `data-cleaning` → `text-analytics` → `model-evaluation` |
+| **Imbalanced classes** | `data-prep` (TD_SMOTE) → `ml-patterns` (class imbalance workflow) → `model-evaluation` |
+| **Micromodeling (per-segment models)** | `ml-functions` (TD_GLM) → `ml-patterns` (micromodeling) |
 
 ---
 > **Adding topics:** Drop a new `.md` file into `src/tdsql_mcp/syntax/` and it appears here
