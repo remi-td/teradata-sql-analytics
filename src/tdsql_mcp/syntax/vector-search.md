@@ -106,6 +106,113 @@ SELECT * FROM TD_VectorDistance(
 
 ---
 
-## TD_HNSW / TD_HNSWPredict / TD_HNSWSummary
+## Approximate Nearest Neighbor — HNSW
 
-*Documentation in progress — paste TD_HNSW docs to continue.*
+For large-scale similarity search, `TD_VectorDistance` with `TopK(-1)` computes exact distances but scales as O(N²). The HNSW family provides approximate nearest-neighbor search that scales to millions of vectors.
+
+| Function | Role |
+|----------|------|
+| `TD_HNSW` | Build the HNSW graph index from input vectors; supports incremental Update and Delete |
+| `TD_HNSWPredict` | Search the index — returns approximate top-K nearest neighbors for query vectors |
+| `TD_HNSWSummary` | Inspect a built index — layer counts, node counts, graph statistics |
+
+---
+
+### TD_HNSW — Build Index
+
+Constructs a Hierarchical Navigable Small World graph from input vectors. The graph is stored in the `OUT TABLE` as packed binary rows (`TD_HNSW_Nodes`). The primary output is a single status message row.
+
+> **Always use `OUT TABLE`** — the primary output is only a status message. The graph itself is in the OUT TABLE.
+
+```sql
+-- Build (training operation)
+SELECT * FROM TD_HNSW(
+    ON { db.table | db.view | (query) } AS InputTable  -- no PARTITION BY, or PARTITION BY ANY [ORDER BY col]
+    OUT [ PERMANENT | VOLATILE ] TABLE ModelTable(db.hnsw_model)  -- required; stores the graph
+    USING
+        IdColumn('id_col')                             -- required; unique row identifier
+        VectorColumn('embedding_col')                  -- required; VECTOR, Vector32, VARBYTE, or BYTE column
+        [ DistanceMeasure('euclidean'|'cosine'|'dotproduct') ]  -- default 'euclidean'; must match TD_HNSWPredict
+        [ EfConstruction(32) ]                         -- neighbors searched during build; range [1, 1024]
+        [ NumConnPerNode(32) ]                         -- connections added per new node; range [1, 1024]
+        [ MaxNumConnPerNode(32) ]                      -- max connections per existing node; range [1, 1024]
+        [ NumLayer(n) ]                                -- default computed from NumConnPerNode; range [1, 1024]
+        [ EmbeddingSize(n) ]                           -- default computed from input data
+        [ ApplyHeuristics('false') ]                   -- default false; true improves graph quality, increases build time
+        [ Seed(seed_value) ]                           -- default random; set for reproducible graph
+        [ UseSIMD('false') ]                           -- default false; enable for SIMD acceleration
+) AS t;
+```
+
+**Output (primary):**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `message` | VARCHAR(128) | Build status message |
+
+**OUT TABLE schema:**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `TD_HNSW_Nodes` | VARBYTE(64000) | Packed graph node data |
+
+**Tuning guide:**
+
+| Parameter | Default | Effect of increasing |
+|-----------|---------|----------------------|
+| `EfConstruction` | 32 | Better recall at search time; slower build |
+| `NumConnPerNode` | 32 | More connections per node; better recall; larger index |
+| `MaxNumConnPerNode` | 32 | Controls max fan-out; prevents over-connected nodes |
+| `ApplyHeuristics` | false | Improves navigability; increases build time |
+
+---
+
+### TD_HNSW — Update and Delete
+
+Insert new vectors into, or remove vectors from, an existing HNSW graph without rebuilding from scratch.
+
+```sql
+-- Update: insert new vectors into an existing graph
+SELECT * FROM TD_HNSW(
+    ON db.hnsw_model AS InputModelTable              -- existing graph (PARTITION BY ANY or no partition)
+    ON { db.new_rows | (query) } AS InputTable DIMENSION  -- rows to insert
+    OUT [ PERMANENT | VOLATILE ] TABLE ModelTable(db.hnsw_model_v2)
+    USING
+        IdColumn('id_col')
+        VectorColumn('embedding_col')
+        AlterOperation('update')
+        [ UseSIMD('false') ]
+) AS t;
+
+-- Delete: remove vectors from an existing graph
+SELECT * FROM TD_HNSW(
+    ON db.hnsw_model AS InputModelTable
+    ON { db.rows_to_delete | (query) } AS InputTable DIMENSION
+    OUT [ PERMANENT | VOLATILE ] TABLE ModelTable(db.hnsw_model_v2)
+    USING
+        IdColumn('id_col')
+        VectorColumn('embedding_col')
+        AlterOperation('delete')
+        [ DeleteMethod('reconstruction'|'deletenode') ]  -- default 'reconstruction'
+        [ UseSIMD('false') ]
+) AS t;
+```
+
+**`DeleteMethod` options:**
+
+| Value | Behavior |
+|-------|----------|
+| `reconstruction` (default) | Graph is rebuilt after deletion — better graph quality |
+| `deletenode` | Nodes removed in place, no rebuild — faster, but may degrade search quality |
+
+---
+
+### TD_HNSWPredict
+
+*Documentation in progress — paste TD_HNSWPredict docs to continue.*
+
+---
+
+### TD_HNSWSummary
+
+*Documentation in progress — paste TD_HNSWSummary docs to continue.*
