@@ -31,6 +31,7 @@ Use `get_syntax_help(topic="<name>")` to load any topic below.
 | `hypothesis-testing` | Statistical hypothesis tests: TD_ANOVA, TD_ChiSq, TD_FTest, TD_ZTest |
 | `association-analysis` | Frequent itemset mining and collaborative filtering: TD_Apriori, TD_CFilter |
 | `path-analysis` | Event sequence analysis: Attribution, Sessionize, nPath |
+| `model-evaluation` | Model evaluation and explainability: TD_TrainTestSplit, TD_ClassificationEvaluator, TD_RegressionEvaluator, TD_ROC, TD_Silhouette, TD_SHAP |
 
 ## Reference
 | Topic | Description |
