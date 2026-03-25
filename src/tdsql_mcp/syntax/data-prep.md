@@ -32,6 +32,34 @@ FROM db.table;
 ### TD_ScaleFit / TD_ScaleTransform
 See the Fit/Transform function section below.
 
+### TD_VectorNormalize
+
+Normalizes numeric columns or `VECTOR` columns using one of four approaches. Supports list or range for `IDColumns`, `TargetColumns`, and `Accumulate`.
+
+```sql
+SELECT * FROM TD_VectorNormalize(
+    ON { db.table | db.view | (query) } AS InputTable [ PARTITION BY ANY ]
+    USING
+        IDColumns({ 'id_col' | col_range }[,...])         -- required; unique row identifier(s)
+        TargetColumns({ 'col' | col_range }[,...])        -- required; columns to normalize; supports VECTOR type
+        [ Accumulate({ 'col' | col_range }[,...]) ]       -- optional; columns to pass through
+        [ Approach('UNITVECTOR'|'FRACTION'|'PERCENTAGE'|'INDEX') ]  -- default 'UNITVECTOR'
+        [ BaseColumn('base_col') ]                        -- required with INDEX; per-row denominator column
+        [ BaseValue('base_value') ]                       -- required with INDEX; scalar denominator value
+) AS t;
+```
+
+**Approach options:**
+
+| Approach | Formula | Use case |
+|----------|---------|----------|
+| `UNITVECTOR` (default) | `x / L2_norm(row)` | Normalize to unit length; required before cosine similarity or HNSW indexing |
+| `FRACTION` | `x / sum(row)` | Each value as a fraction of the row total |
+| `PERCENTAGE` | `x / sum(row) * 100` | Each value as a percentage of the row total |
+| `INDEX` | `(x - B) / V` | Normalize relative to a base; `B` from `BaseColumn`, `V` from `BaseValue` |
+
+> **Embedding pre-processing:** use `Approach('UNITVECTOR')` with a `VECTOR` column before storing embeddings or building an HNSW index. Unit-normalized vectors enable cosine similarity via dot product. See `vector-search` topic.
+
 ---
 
 ## Binning
