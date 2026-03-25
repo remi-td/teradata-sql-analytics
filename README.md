@@ -1,23 +1,105 @@
 # tdsql-mcp
 
-An MCP server that provides SQL tools for working with a Teradata database. Designed to work with Claude Desktop, agent frameworks, and any MCP-compatible client.
+An MCP server that turns Teradata Vantage into a full-stack analytics agent platform — giving AI agents not just SQL execution, but a structured, hierarchical knowledge base of Teradata's native function ecosystem.
+
+## What This Is
+
+Most database MCP servers provide query execution. This one goes further: it equips agents with the knowledge they need to use Teradata *correctly and optimally* — not just to run arbitrary SQL, but to reach for the right native distributed function for each step of an analytics workflow.
+
+Teradata Vantage includes hundreds of built-in table operators for ML, statistics, data preparation, text analytics, and vector search. These run distributed across all AMPs in parallel and consistently outperform equivalent hand-written SQL. The challenge for agents is *discovery* — knowing these functions exist, knowing which one to use, and knowing how to combine them into pipelines.
+
+This server solves that with a structured syntax reference library and an agent guidance architecture that directs models toward native functions at every decision point.
+
+---
+
+## The Syntax Reference Library
+
+The `get_syntax_help` tool (and the `teradata://syntax/{topic}` resources) expose a comprehensive, agent-optimized reference library covering the full Teradata Vantage analytics stack.
+
+### Coverage
+
+| Domain | Functions / Patterns |
+|--------|----------------------|
+| **Data Exploration** | TD_ColumnSummary, TD_UnivariateStatistics, TD_Histogram, TD_QQNorm, TD_MovingAverage, TD_Correlation |
+| **Data Cleaning** | TD_OutlierFilterFit/Transform, TD_FillNa, TD_Deduplicate, TD_StringSimilarity, TD_TypeCheck |
+| **Data Preparation** | TD_ScaleFit/Transform, TD_BinCodeFit/Transform, TD_OneHotEncodingFit/Transform, TD_OrdinalEncodingFit/Transform, TD_TargetEncodingFit/Transform, TD_PolynomialFeaturesFit/Transform, TD_NonLinearCombineFit/Transform, TD_FunctionFit/Transform, TD_RandomProjectionFit/Transform, TD_RowNormalizeFit/Transform, TD_Pivoting, TD_Unpivoting, TD_ColumnTransformer, TD_SMOTE, TD_VectorNormalize, and more |
+| **Machine Learning** | TD_XGBoost, TD_DecisionForest, TD_GLM, TD_KMeans, TD_KNN, TD_SVM, TD_OneClassSVM, TD_NaiveBayes — all with Train/Predict pairs |
+| **Model Evaluation** | TD_TrainTestSplit, TD_ClassificationEvaluator, TD_RegressionEvaluator, TD_ROC, TD_Silhouette, TD_SHAP |
+| **Text Analytics** | TD_NgramSplitter, TD_NaiveBayesTextClassifier, TD_NERExtractor, TD_SentimentExtractor, TD_TextParser, TD_TextMorph, TD_TextTagger, TD_TFIDF, TD_WordEmbeddings |
+| **Vector Search** | VECTOR/Vector32 types, TD_VectorDistance, TD_HNSW/TD_HNSWPredict/TD_HNSWSummary, KMeans IVF pattern |
+| **Statistical Testing** | TD_ANOVA, TD_ChiSq, TD_FTest, TD_ZTest |
+| **Association & Path Analysis** | TD_Apriori, TD_CFilter, Sessionize, nPath, Attribution |
+| **ML Pipeline Patterns** | CTE prediction pipeline, elbow method, train/evaluate/retrain loop, class imbalance workflow, micromodeling |
+| **Core SQL** | SELECT, CTEs, joins, window functions, date/time, aggregation, conditional logic, data types |
+
+### Library Architecture
+
+The library is structured in three layers, matching how agents reason about analytics problems:
+
+```
+guidelines.md          ← "What native function covers this operation?"
+                          Canonical mapping of 50+ common operations to native functions.
+                          Agents consult this first, before writing any SQL.
+
+index.md               ← Topic directory + Workflows section
+                          Maps common use cases (fraud detection, clustering, NLP, etc.)
+                          to ordered topic sequences. Agents load topics in the right order.
+
+<topic>.md files       ← Detailed syntax for each function or domain
+                          Full argument reference, output schemas, usage patterns,
+                          and complete pipeline examples.
+```
+
+An agent tackling a fraud detection problem can navigate this hierarchy:
+1. Load `guidelines` — confirms `TD_XGBoost`, `TD_ScaleFit`, `TD_SMOTE`, `TD_ClassificationEvaluator` are the right tools
+2. Load `index` — finds the Classification workflow topic sequence
+3. Load `data-prep`, `ml-functions`, `model-evaluation` in order
+4. Assemble the pipeline using the CTE prediction pipeline pattern from `ml-patterns`
+
+### Pipeline Patterns
+
+A key capability is the **CTE prediction pipeline** — a fully encapsulated scoring pipeline that applies all preprocessing and scoring in a single SQL query, with no intermediate tables:
+
+```sql
+WITH transformed AS (
+    SELECT id, feat1, feat2, feat3_encoded, feat4_scaled, target_col
+    FROM TD_ColumnTransformer(
+        ON db.new_data AS InputTable
+        ON db.impute_fit     AS ImputeFitTable        DIMENSION
+        ON db.encoding_fit   AS OneHotEncodingFitTable DIMENSION
+        ON db.scale_fit      AS ScaleFitTable          DIMENSION
+    ) AS t
+)
+SELECT * FROM TD_XGBoostPredict(
+    ON transformed AS InputTable
+    ON db.my_model AS ModelTable DIMENSION
+    USING IDColumn('id') Accumulate('target_col')
+) AS dt;
+```
+
+The saved FitTables and model table are built once at training time and reused indefinitely — enabling reproducible, versioned inference pipelines entirely in-database.
+
+---
 
 ## Tools
 
 | Tool | Description |
 |------|-------------|
+| `get_syntax_help` | **Start here.** Returns syntax reference for a topic. Use `topic="guidelines"` for the native-functions mapping, `topic="index"` to browse all topics. |
 | `execute_query` | Run a SELECT query; returns JSON with rows, row count, and truncation flag |
 | `execute_statement` | Run DDL/DML (INSERT, UPDATE, CREATE, etc.); disabled in read-only mode |
-| `list_databases` | List all accessible databases/schemas |
-| `list_tables` | List tables and views in a given database |
-| `describe_table` | Get column definitions for a table or view |
 | `explain_query` | Validate SQL syntax and preview the execution plan via Teradata EXPLAIN |
+| `describe_table` | Get column definitions for a table or view |
+| `list_tables` | List tables and views in a given database |
+| `list_databases` | List all accessible databases/schemas |
 
 ## Resources
 
 | URI | Contents |
 |-----|----------|
-| `teradata://syntax/{topic}` | Teradata SQL syntax reference by topic — use `get_syntax_help("index")` to browse |
+| `teradata://syntax/{topic}` | Same content as `get_syntax_help` — accessible as MCP resources |
+
+---
 
 ## Configuration
 
@@ -63,8 +145,6 @@ can be appended as a query-string argument:
 
 ### Multiple parameters example
 
-Parameters are chained with `&` like any URL query string — order does not matter:
-
 ```
 # LDAP + encryption + full TLS + timeouts
 teradata://myuser:mypassword@myhost/mydb?logmech=LDAP&encryptdata=true&sslmode=VERIFY-FULL&logon_timeout=30&connect_timeout=5000
@@ -77,6 +157,8 @@ teradata://myuser:mypassword@myhost/mydb?logmech=LDAP&tmode=ANSI&cop=false
 ```
 
 See [.env.example](.env.example) for more annotated examples.
+
+---
 
 ## Usage
 
@@ -130,7 +212,7 @@ Using a local virtual environment (instead of `uvx`):
 }
 ```
 
-Replace `/path/to/tdsql-mcp` with the absolute path to where you cloned the repo — for example `/Users/alice/projects/tdsql-mcp`. The `.venv/bin/tdsql-mcp` script is created automatically when you run `pip install -e .` inside the venv. No `uvx` or separate install needed.
+Replace `/path/to/tdsql-mcp` with the absolute path to where you cloned the repo. The `.venv/bin/tdsql-mcp` script is created automatically when you run `pip install -e .` inside the venv.
 
 For read-only mode, add `--read-only` to `args`:
 
@@ -196,6 +278,20 @@ pip install -r requirements.txt
 pip install -e . --no-deps
 ```
 
+---
+
+## Extending the Syntax Library
+
+The library is designed to grow. To add a new topic:
+
+1. Create `src/tdsql_mcp/syntax/<topic>.md`
+2. Add an entry to `index.md`
+3. Add relevant mappings to `guidelines.md`
+
+No code changes needed — the tool auto-discovers `.md` files at call time. Topics currently planned for future addition include `embeddings.md`, `time-series-patterns.md`, `json-functions.md`, and `geospatial.md`.
+
+---
+
 ## Result format
 
 `execute_query` returns:
@@ -215,3 +311,4 @@ pip install -e . --no-deps
 - The server establishes a persistent connection on startup and automatically reconnects on failure.
 - `execute_query` defaults to `max_rows=100` to keep token usage manageable. Maximum is 10,000.
 - Use `explain_query` before running unfamiliar queries — Teradata's EXPLAIN validates syntax and shows the execution plan without actually running the query.
+- All logging goes to stderr; stdout is reserved for the MCP JSON-RPC protocol.
