@@ -86,7 +86,7 @@ The `get_syntax_help` tool (and the `teradata://syntax/{topic}` resources) expos
 | Domain | Functions / Patterns |
 |--------|----------------------|
 | **Data Exploration** | TD_ColumnSummary, TD_UnivariateStatistics, TD_Histogram, TD_QQNorm, TD_MovingAverage, TD_Correlation |
-| **Data Cleaning** | TD_OutlierFilterFit/Transform, TD_FillNa, TD_Deduplicate, TD_StringSimilarity, TD_TypeCheck |
+| **Data Cleaning** | TD_OutlierFilterFit/Transform, TD_SimpleImputeFit/Transform, TD_GetRowsWithMissingValues, TD_GetRowsWithoutMissingValues, TD_GetFutileColumns, TD_ConvertTo, StringSimilarity |
 | **Data Preparation** | TD_ScaleFit/Transform, TD_BinCodeFit/Transform, TD_OneHotEncodingFit/Transform, TD_OrdinalEncodingFit/Transform, TD_TargetEncodingFit/Transform, TD_PolynomialFeaturesFit/Transform, TD_NonLinearCombineFit/Transform, TD_FunctionFit/Transform, TD_RandomProjectionFit/Transform, TD_RowNormalizeFit/Transform, TD_Pivoting, TD_Unpivoting, TD_ColumnTransformer, TD_SMOTE, TD_VectorNormalize, and more |
 | **Machine Learning** | TD_XGBoost, TD_DecisionForest, TD_GLM, TD_KMeans, TD_KNN, TD_SVM, TD_OneClassSVM, TD_NaiveBayes — all with Train/Predict pairs |
 | **Model Evaluation** | TD_TrainTestSplit, TD_ClassificationEvaluator, TD_RegressionEvaluator, TD_ROC, TD_Silhouette, TD_SHAP |

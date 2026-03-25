@@ -26,10 +26,12 @@ Teradata Vantage has built-in distributed table operators for most analytics, ML
 | Instead of this (manual SQL) | Use this (native function) | Topic |
 |-------------------------------|---------------------------|-------|
 | Manual CASE-based outlier detection | `TD_OutlierFilterFit` / `TD_OutlierFilterTransform` | `data-cleaning` |
-| Manual COALESCE / UPDATE for NULL fill | `TD_FillNa` | `data-cleaning` |
-| Manual ROW_NUMBER deduplication | `TD_Deduplicate` | `data-cleaning` |
-| Manual REGEXP_REPLACE string cleaning | `TD_StringSimilarity`, `TD_StringDistance` | `data-cleaning` |
-| Manual type-check logic | `TD_TypeCheck` | `data-cleaning` |
+| Manual COALESCE / UPDATE for NULL fill | `TD_SimpleImputeFit` / `TD_SimpleImputeTransform` | `data-cleaning` |
+| Manual ROW_NUMBER deduplication | Manual SQL pattern (ROW_NUMBER + QUALIFY) | `data-cleaning` |
+| Find rows containing NULLs | `TD_GetRowsWithMissingValues` / `TD_GetRowsWithoutMissingValues` | `data-cleaning` |
+| Identify low-variance / useless columns | `TD_GetFutileColumns` | `data-cleaning` |
+| String fuzzy matching / distance | `StringSimilarity` | `data-cleaning` |
+| Type conversion with defined rules | `TD_ConvertTo` | `data-cleaning` |
 
 ### Data Preparation & Feature Engineering
 
