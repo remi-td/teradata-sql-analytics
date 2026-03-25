@@ -33,6 +33,7 @@ Use `get_syntax_help(topic="<name>")` to load any topic below.
 | `path-analysis` | Event sequence analysis: Attribution, Sessionize, nPath |
 | `model-evaluation` | Model evaluation and explainability: TD_TrainTestSplit, TD_ClassificationEvaluator, TD_RegressionEvaluator, TD_ROC, TD_Silhouette, TD_SHAP |
 | `ml-patterns` | End-to-end ML pipeline patterns: CTE prediction pipeline, elbow method, train/evaluate/retrain loop, class imbalance workflow, micromodeling |
+| `vector-search` | Vector similarity search: TD_VectorDistance (exact), TD_HNSW/TD_HNSWPredict (approximate), KMeans IVF pattern |
 
 ## Reference
 | Topic | Description |
