@@ -54,7 +54,7 @@ Use `get_syntax_help(topic="<name>")` to load any topic below.
 | `authorization-objects` | CREATE/REPLACE/GRANT authorization objects for external service credentials (AI functions, external procedures) |
 | `llm-providers` | LLM provider argument blocks for AI functions — Azure, AWS Bedrock, GCP, NVIDIA NIM, LiteLLM |
 | `byom-model-loading` | Loading PMML, H2O MOJO, ONNX, Dataiku, DataRobot, and MLeap models into Teradata BYOM tables; conversion workflow for ONNX embedding models |
-| `byom-scoring` | *(planned)* BYOM batch and real-time scoring functions |
+| `byom-scoring` | BYOM scoring: PMMLPredict, H2OPredict, ONNXPredict, DataikuPredict, DataRobotPredict, MLeapPredict; NLP transformers: ONNXSeq2Seq, ONNXClassification |
 
 ---
 
