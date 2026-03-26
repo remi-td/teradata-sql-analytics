@@ -53,7 +53,7 @@ Use `get_syntax_help(topic="<name>")` to load any topic below.
 | `query-tuning` | EXPLAIN, PI design, collect stats, query rewrite tips |
 | `authorization-objects` | CREATE/REPLACE/GRANT authorization objects for external service credentials (AI functions, external procedures) |
 | `llm-providers` | LLM provider argument blocks for AI functions — Azure, AWS Bedrock, GCP, NVIDIA NIM, LiteLLM |
-| `byom-model-loading` | *(planned)* Loading ONNX, PMML, MOJO, and partner models into Teradata BYOM model tables |
+| `byom-model-loading` | Loading PMML, H2O MOJO, ONNX, Dataiku, DataRobot, and MLeap models into Teradata BYOM tables; conversion workflow for ONNX embedding models |
 | `byom-scoring` | *(planned)* BYOM batch and real-time scoring functions |
 
 ---
