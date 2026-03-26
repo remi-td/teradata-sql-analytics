@@ -97,6 +97,8 @@ The `get_syntax_help` tool (and the `teradata://syntax/{topic}` resources) expos
 | **Statistical Testing** | TD_ANOVA, TD_ChiSq, TD_FTest, TD_ZTest |
 | **Association & Path Analysis** | TD_Apriori, TD_CFilter, Sessionize, nPath, Attribution |
 | **ML Pipeline Patterns** | CTE prediction pipeline, elbow method, train/evaluate/retrain loop, class imbalance workflow, micromodeling |
+| **BYOM Model Loading** | PMML, H2O MOJO (open source + DAI), ONNX, Dataiku, DataRobot, MLeap — table schema, loading via BTEQ/Python, ONNX conversion workflow, sparse map tables, DAI license management |
+| **BYOM Scoring** | PMMLPredict, H2OPredict, ONNXPredict, DataikuPredict, DataRobotPredict, MLeapPredict; NLP transformers: ONNXSeq2Seq, ONNXClassification |
 | **Core SQL** | SELECT, CTEs, joins, window functions, date/time, aggregation, conditional logic, data types |
 
 ### Library Architecture
@@ -355,7 +357,7 @@ The library is designed to grow. To add a new topic:
 2. Add an entry to `index.md`
 3. Add relevant mappings to `guidelines.md`
 
-No code changes needed — the tool auto-discovers `.md` files at call time. Topics currently planned for future addition include `byom-model-loading.md`, `byom-scoring.md`, `time-series-patterns.md`, `json-functions.md`, and `geospatial.md`.
+No code changes needed — the tool auto-discovers `.md` files at call time. Topics planned for future addition include `time-series-patterns.md`, `json-functions.md`, and `geospatial.md`.
 
 ---
 
