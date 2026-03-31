@@ -234,9 +234,24 @@ See [.env.example](.env.example) for more annotated examples.
 
 ---
 
-## Usage
+## Two Ways to Use This
 
-### Claude Desktop
+| | MCP Server | Skill |
+|---|---|---|
+| **What it provides** | Live SQL execution + syntax library | Syntax library only |
+| **Teradata credentials required** | Yes | No |
+| **Works with** | Claude Desktop, Claude Code | Claude Code |
+| **Use when** | You have Teradata access and want to run queries | You already have a DB connection, or just want SQL writing assistance |
+
+You can use either one independently, or both together. When combined, the MCP server handles query execution and the skill loads the native function guidelines at the start of every session.
+
+---
+
+## Setup
+
+### Option 1 — MCP Server (SQL execution + syntax library)
+
+#### Claude Desktop
 
 Add to your `claude_desktop_config.json`:
 
@@ -294,7 +309,32 @@ For read-only mode, add `--read-only` to `args`:
 "args": ["--read-only"]
 ```
 
-### Running directly
+#### Claude Code
+
+Add the MCP server to your Claude Code settings (`.claude/settings.json` or via `claude mcp add`):
+
+```bash
+claude mcp add teradata -- uvx tdsql-mcp
+# then set DATABASE_URI in your environment or .env file
+```
+
+Or add it manually to `.claude/settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "teradata": {
+      "command": "uvx",
+      "args": ["tdsql-mcp"],
+      "env": {
+        "DATABASE_URI": "teradata://myuser:mypassword@myhost/mydb"
+      }
+    }
+  }
+}
+```
+
+#### Running directly
 
 ```bash
 # Install
@@ -313,7 +353,7 @@ tdsql-mcp --uri "teradata://me:secret@myhost/mydb?logmech=LDAP&sslmode=VERIFY-FU
 tdsql-mcp --uri "teradata://me:secret@myhost/mydb" --read-only
 ```
 
-### Install from source (with virtual environment)
+#### Install from source (with virtual environment)
 
 ```bash
 # Clone the repository
@@ -351,6 +391,77 @@ To install from the pinned `requirements.txt` snapshot instead of resolving fres
 pip install -r requirements.txt
 pip install -e . --no-deps
 ```
+
+---
+
+### Option 2 — Skill (syntax library, no credentials required)
+
+The skill loads the native function guidelines and full syntax topic index into any Claude Code session. No Teradata connection or credentials are required — it's a read-only knowledge library.
+
+**What you get:** Type `/teradata-sql-analytics` at the start of a session to load the guidelines and topic index. Claude will check for an available database connection tool and confirm whether it can execute queries or work in SQL-writing-only mode.
+
+#### Installation — Claude Code (CLI / IDE extensions)
+
+```bash
+# Clone the repository
+git clone https://github.com/ksturgeon-td/tdsql-mcp.git
+cd tdsql-mcp
+
+# Install the skill — symlink keeps the syntax library current as the repo updates
+REPO_DIR="$(pwd)"
+mkdir -p ~/.claude/teradata-sql-analytics
+cp skills/teradata-sql-analytics/SKILL.md ~/.claude/teradata-sql-analytics/SKILL.md
+ln -sf "$REPO_DIR/src/tdsql_mcp/syntax" ~/.claude/teradata-sql-analytics/syntax
+```
+
+To get syntax library updates later, just `git pull` in the repo directory — the symlink means your installed skill picks up changes automatically.
+
+If you prefer a standalone copy with no repo dependency:
+
+```bash
+# Copy all files directly (no ongoing repo dependency)
+cp -rL tdsql-mcp/skills/teradata-sql-analytics ~/.claude/teradata-sql-analytics
+```
+
+#### Installation — Claude Desktop & Claude.ai (ZIP upload)
+
+Skills can be uploaded as a ZIP file via **Customize > Skills** in both the Claude Desktop app and Claude.ai web app.
+
+> **Prerequisite:** Code execution must be enabled in **Settings > Capabilities** before Skills become accessible.
+
+Build the ZIP:
+
+```bash
+# Clone the repository
+git clone https://github.com/ksturgeon-td/tdsql-mcp.git
+cd tdsql-mcp
+
+# Build a self-contained skill folder (follows symlinks so syntax files are included)
+rsync -rL skills/teradata-sql-analytics/ /tmp/teradata-sql-analytics/
+
+# Zip it
+cd /tmp && zip -r teradata-sql-analytics.zip teradata-sql-analytics/
+```
+
+Then upload:
+1. Open Claude Desktop or Claude.ai
+2. Go to **Customize > Skills**
+3. Click **+** → **Upload a skill**
+4. Select `teradata-sql-analytics.zip`
+
+The skill will appear in your Skills list and can be toggled on/off. Uploaded skills are private to your account. Enterprise admins can provision skills organization-wide via **Organization settings > Skills**.
+
+#### Usage
+
+**Claude Code** — type this at the start of any session:
+
+```
+/teradata-sql-analytics
+```
+
+**Claude Desktop / Claude.ai** — enable the skill via **Customize > Skills**, then start a new conversation. The skill activates automatically.
+
+Claude will load the native function guidelines and topic index, check for a database connection, and confirm it's ready. From there, ask it to write, review, or optimize any Teradata SQL — or load a specific syntax topic with `get_syntax_help(topic="...")` if you also have the MCP server running.
 
 ---
 
