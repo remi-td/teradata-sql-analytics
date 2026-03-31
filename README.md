@@ -103,6 +103,7 @@ The `get_syntax_help` tool (and the `teradata://syntax/{topic}` resources) expos
 | **UAF — Diagnostics** | Dickey-Fuller, Durbin-Watson, Breusch-Godfrey, Breusch-Pagan-Godfrey, White's General, Goldfeld-Quandt, Portman, FITMETRICS, SELECTION_CRITERIA, cumulative periodogram, significant periodicities |
 | **UAF — DSP & Spatial** | DFFT/DFFT2, IDFFT/IDFFT2, convolution, DWT/IDWT (1D/2D), power spectrum, line spectrum, SAX, windowed DFFT, geospatial tracking |
 | **UAF — Utilities** | Series/matrix inspection (TD_SINFO, TD_MINFO), input validation, image↔matrix conversion, in-database charting (TD_PLOT), FIR filter factory, table format conversion |
+| **Geospatial** | ST_Geometry, MBR/MBB, WKT/WKB formats, spatial relationships (ST_Within, ST_Contains, ST_Distance, ST_Intersects, etc.), spherical/spheroidal distance, geospatial indexes, AggGeom, GeometryToRows, PolygonSplit, GeoSequence tracking, tessellation, MGRS conversion, SYSSPATIAL metadata |
 | **Core SQL** | SELECT, CTEs, joins, window functions, date/time, aggregation, conditional logic, data types |
 
 ### Library Architecture
@@ -361,7 +362,7 @@ The library is designed to grow. To add a new topic:
 2. Add an entry to `index.md`
 3. Add relevant mappings to `guidelines.md`
 
-No code changes needed — the tool auto-discovers `.md` files at call time. Topics planned for future addition include `time-series-patterns.md`, `json-functions.md`, and `geospatial.md`.
+No code changes needed — the tool auto-discovers `.md` files at call time. Topics planned for future addition include `time-series-patterns.md`, `json-functions.md`, and `object-store.md` (READ_NOS, foreign tables, Iceberg/Delta query patterns).
 
 ---
 

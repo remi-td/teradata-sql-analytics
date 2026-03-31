@@ -58,6 +58,11 @@ Use `get_syntax_help(topic="<name>")` to load any topic below.
 | `uaf-dsp` | UAF digital signal processing and spatial: TD_DFFT/DFFT2, TD_IDFFT/IDFFT2, TD_DFFTCONV/DFFT2CONV, TD_CONVOLVE/CONVOLVE2, TD_DWT/DWT2D, TD_IDWT/IDWT2D, TD_POWERSPEC, TD_LINESPEC, TD_GENSERIES4SINUSOIDS, TD_SAX, TD_WINDOWDFFT |
 | `uaf-formula-rules` | UAF formula syntax: operators, precedence, math and trigonometric functions, variable naming conventions for FORMULA(...) parameters |
 
+## Geospatial
+| Topic | Description |
+|-------|-------------|
+| `geospatial` | ST_Geometry, MBR/MBB types, WKT/WKB formats, spatial relationships (ST_Within, ST_Contains, ST_Distance, etc.), geospatial indexes, tessellation, AggGeom, GeometryToRows, PolygonSplit, MGRS conversion, SYSSPATIAL metadata |
+
 ## Reference
 | Topic | Description |
 |-------|-------------|

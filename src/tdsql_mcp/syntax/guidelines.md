@@ -220,6 +220,23 @@ Native functions distribute across all AMPs. The result set returned to the agen
 | Manual funnel / path counting | `nPath` | `path-analysis` |
 | Manual attribution modeling | `Attribution` | `path-analysis` |
 
+### Geospatial
+
+| Instead of this | Use this (native function) | Topic |
+|-----------------|---------------------------|-------|
+| External point-in-polygon test | `ST_Within(ageometry)` / `ST_Contains(ageometry)` | `geospatial` |
+| External spatial join (points within areas) | Native spatial join with geospatial NUSI — `JOIN ON col.ST_Within(other) = 1` | `geospatial` |
+| External distance calculation | `ST_Distance`, `ST_SpheroidalDistance`, `ST_SphericalDistance` | `geospatial` |
+| External proximity search | `ST_Distance(...) < constant` with geospatial index | `geospatial` |
+| External buffer zone | `ST_Buffer(distance)` | `geospatial` |
+| External polygon area / perimeter | `ST_Area()`, `ST_Perimeter()` | `geospatial` |
+| External centroid calculation | `ST_Centroid()` | `geospatial` |
+| External geometry union/intersection | `ST_Union`, `ST_Intersection`, `AggGeom(USING Operation('Union'))` | `geospatial` |
+| External WKT parsing | `NEW ST_Geometry('WKT...')` | `geospatial` |
+| External MGRS conversion | `TO_MGRS`, `FROM_MGRS` (TD_SYSFNLIB) | `geospatial` |
+| Explode polygon/linestring to point rows | `GeometryToRows(ON ...)` | `geospatial` |
+| Split large polygons for performance | `PolygonSplit(ON ...)` | `geospatial` |
+
 ### Time Series, DSP & Spatial — Unbounded Array Framework (UAF)
 
 > **Multi-series parallelism:** A single UAF function call processes **all series instances simultaneously** across all AMPs. Whether you are fitting ARIMA models for 1 entity or 1 million, forecasting 10 sensors or 10 million, the call is identical — the platform distributes the work. Never loop, iterate, or run separate queries per entity. Pass all series at once and let the AMP architecture do the parallelism.
