@@ -124,3 +124,19 @@ CREATE TABLE db.my_table AS (
 -- String concatenation: use || (ANSI) or CONCAT() — not +
 -- Semicolons: required in BTEQ; optional in most client tools
 ```
+
+## Teradata Operator Differences
+
+| Operation | Wrong (MySQL/PostgreSQL) | Correct (Teradata) |
+|-----------|-------------------------|--------------------|
+| Not equal | `!=` | `<>` |
+| Set difference | `EXCEPT` | `MINUS` |
+| String concat | `+` | `\|\|` or `CONCAT()` |
+
+```sql
+-- WRONG
+WHERE status != 'active'
+
+-- RIGHT
+WHERE status <> 'active'
+```
