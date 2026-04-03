@@ -276,6 +276,42 @@ See the `ml-patterns` topic for complete end-to-end ML pipeline examples. See `u
 
 ---
 
+## Query Validation and Optimization with EXPLAIN
+
+For any non-trivial query, run `explain_query` before executing. Read the plan and optimize if needed — do not just use EXPLAIN for syntax checking.
+
+**When to always EXPLAIN first:**
+- Queries joining two or more large tables
+- Queries without a PI-aligned filter (likely full table scan)
+- Queries with subqueries, correlated subqueries, or complex predicates
+- Any query you're about to run with `execute_statement` that modifies data
+
+**Decision loop:**
+1. Run `explain_query(sql=...)`
+2. Scan for red flags (see below) — if found, fix and re-EXPLAIN before executing
+3. Only execute once the plan looks reasonable
+
+**Red flags in EXPLAIN output — act on these:**
+
+| Signal | Problem | Action |
+|--------|---------|--------|
+| `estimated with no confidence` | Missing statistics — optimizer is guessing | `COLLECT STATISTICS ON db.table COLUMN (col)` |
+| `estimated with low confidence` | Stale or partial statistics | Refresh stats on join/filter columns |
+| `product join` | Potential Cartesian explosion | Check join conditions; add missing predicate |
+| `all-rows scan` on large table | Full table scan | Check if PI filter or index is applicable |
+| `redistributed by hash code` on large spool | Expensive data movement | Consider PI alignment or pre-staged table |
+| `(group_amps)` on very few AMPs | Data skew | Check for skewed join key values |
+
+**Green flags — plan is efficient:**
+- `single-AMP RETRIEVE by way of the unique primary index` — best-case access
+- `estimated with high confidence` — optimizer has reliable statistics
+- `duplicated on all AMPs` on a small table — correct broadcast strategy
+- `execute the following steps in parallel` — independent steps dispatched concurrently
+
+For full EXPLAIN interpretation guidance, optimization playbook, and stats collection patterns: `get_syntax_help(topic="query-tuning")`.
+
+---
+
 ## When Manual SQL Is Appropriate
 
 Native functions do not cover everything. Use hand-written SQL for:

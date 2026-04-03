@@ -4,14 +4,62 @@
 Validate syntax and preview the execution plan without running the query:
 ```sql
 EXPLAIN SELECT col1, col2 FROM db.table WHERE id = 1;
+
+-- Dynamic EXPLAIN: better for correlated subqueries, multi-level nesting,
+-- or queries where intermediate sizes dramatically change the plan
+DYNAMIC EXPLAIN SELECT col1, col2 FROM db.table WHERE id = 1;
 ```
-Key things to look for in EXPLAIN output:
-- **"No confidence"** — statistics are missing; collect stats on join/filter columns
-- **"Low confidence"** — stale or partial stats
-- **"We do an all-AMPs"** — full table scan (may be fine or may need an index)
-- **"We do a single-AMP"** — efficient PI lookup
-- **Product join** — potentially expensive; check join conditions
-- **Spool usage** — large intermediate results; consider pushing filters earlier
+
+Use `explain_query` before executing any non-trivial query. If the plan shows critical issues (see below), fix and re-EXPLAIN before running.
+
+### EXPLAIN Phrase Glossary
+
+| Phrase | Optimizer Intent |
+|--------|-----------------|
+| `single-AMP RETRIEVE by way of the unique primary index` | Best-case tactical access — no spool, no redistribution |
+| `by way of an all-rows scan` | Full table scan — examine predicates, stats, and partitioning |
+| `redistributed by hash code` | Row movement to co-locate join keys — check skew risk |
+| `duplicated on all AMPs` | Broadcast small input to all AMPs — verify it's truly small |
+| `(group_amps)` | Spool built on subset of AMPs — potential skew signal |
+| `(all_amps)` | Spool built on every AMP — expected for large tables |
+| `SORT to order Spool n by row hash` | Preparing for merge/hash join |
+| `estimated with no confidence` | Missing statistics — unreliable cardinality estimate |
+| `estimated with low confidence` | Partial or stale statistics — conservative planning |
+| `estimated with high confidence` | Good statistics — optimizer has reliable estimates |
+| `index join confidence` | Optimizer used index stats — reliable |
+| `execute the following steps in parallel` | Independent sub-steps dispatched concurrently |
+| `RowHash match scan` | Join driven by rowhash ordering |
+| `eliminating duplicate rows` | DISTINCT or duplicate removal in spool |
+| `hash join` | Standard large-table join — efficient when well-sized |
+| `merge join` | Sorted join — efficient when inputs already sorted by join key |
+| `product join` | Cartesian join — almost always a problem on large tables |
+| `nested join` | Driven by index — efficient for small outer inputs |
+
+### Severity Classification
+
+**Critical — fix before executing:**
+- `no confidence` on large tables
+- `product join` on large tables (potential Cartesian explosion)
+- `all-rows scan` on very large tables (>1M rows) without a clear reason
+- Steps consuming >15% of total estimated time
+- `(group_amps)` materializing on very few AMPs (severe skew)
+- Massive intermediate spool (>1 GB estimated)
+
+**Warning — should investigate:**
+- `low confidence` on join or filter columns
+- Steps consuming 5–15% of total estimated time
+- Large redistributions (>500 MB spool)
+- Secondary index scans with large result sets
+- Multiple sequential redistributions
+- Missing partition elimination on a partitioned table
+
+**Good — plan is efficient:**
+- `single-AMP RETRIEVE by way of the unique primary index`
+- `high confidence` or `index join confidence` estimates
+- `duplicated on all AMPs` on a provably small table
+- `execute the following steps in parallel`
+- Spool `(Last Use)` markers correctly placed (spool freed promptly)
+- Local aggregation (no redistribution needed)
 
 ## Collect Statistics
 Missing stats = bad plans. Collect on PI columns, join columns, and WHERE-clause columns:
