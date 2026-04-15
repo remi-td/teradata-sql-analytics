@@ -394,3 +394,144 @@ ORDER BY Distance ASC;
 | Update | Incremental (TD_HNSW AlterOperation) | Re-cluster periodically |
 
 > **Tip:** increase Y (clusters searched in Step 2) to improve recall at the cost of search time. A good starting point is Y = sqrt(K).
+
+---
+
+## Inline NL Query → Embedding → Vector Search Pipeline
+
+The full RAG retrieval pattern: embed a natural language question inline at query time, normalize it, and search against a pre-built corpus embedding table — all in a single SQL statement. No Python round-trip or intermediate tables required.
+
+### Prerequisites
+
+The corpus embedding table must be built using the **same model and normalization approach** as the query. See "Building the Corpus Embedding Table" below.
+
+### Query Pipeline (CTE pattern)
+
+```sql
+-- ── Step 1: wrap the input question ─────────────────────────────────────────
+-- TD_BYONE() routes all rows to a single AMP — required for single-row
+-- inputs to AI_TEXTEMBEDDINGS so the embedding call receives all rows at once.
+WITH input_question AS (
+    SELECT
+        'your natural language question here'  AS txt,
+        1                                      AS id,
+        TD_BYONE()                             AS p
+),
+
+-- ── Step 2: embed and normalize the question ─────────────────────────────────
+-- AI_TEXTEMBEDDINGS calls the external embedding API.
+-- TD_VectorNormalize converts the raw embedding to a unit vector.
+-- The model, apitype, region, and EmbeddingSize MUST match the corpus build.
+embed_question AS (
+    SELECT * FROM TD_VectorNormalize(
+        ON (
+            SELECT txt, id, Embedding, Embedding AS Embedding_Normalized
+            FROM AI_TEXTEMBEDDINGS(
+                ON input_question AS InputTable
+                PARTITION BY p
+                USING
+                    Authorization(<auth_object>)         -- e.g. demo_embeddings_auth
+                    apitype('<provider>')                 -- 'aws' | 'azure' | 'openai' | 'gcp' | 'nim' | 'litellm'
+                    region('<region>')                    -- e.g. 'us-east-1' (AWS); omit for non-AWS providers
+                    modelname('<model_name>')             -- e.g. 'amazon.titan-embed-text-v2:0'
+                    modelargs('{}')
+                    textcolumn('txt')
+                    outputformat('vector')
+                    refreshcredentialtimeseconds('3600')
+            ) AS ve
+        ) AS InputTable
+        USING
+            IDColumns('id')
+            TargetColumns('Embedding_Normalized')
+            Approach('UNITVECTOR')
+            Accumulate('txt', 'Embedding')
+            EmbeddingSize(<embedding_dim>)               -- must match model output; e.g. 1024
+    ) AS ip
+)
+
+-- ── Step 3: vector distance search ───────────────────────────────────────────
+-- TargetTable = the 1-row query embedding.
+-- ReferenceTable = pre-built corpus embeddings table (DIMENSION = broadcast to all AMPs).
+-- TopK returns the K nearest corpus items to the query.
+SELECT
+    q.txt                              AS question,
+    src.id                             AS result_id,
+    src.<text_column>                  AS result_text,
+    CAST(d.distance AS DECIMAL(36,8))  AS distance
+FROM (
+    SELECT target_id, reference_id, distance
+    FROM TD_VectorDistance(
+        ON embed_question AS TargetTable PARTITION BY ANY
+        ON <db>.<corpus_embeddings_table> AS ReferenceTable DIMENSION
+        USING
+            TargetIDColumn('id')
+            TargetFeatureColumns('Embedding_Normalized')
+            RefIDColumn('<corpus_id_col>')
+            RefFeatureColumns('<corpus_embedding_col>')
+            DistanceMeasure('cosine')
+            TopK(<k>)                                    -- number of results to return
+    ) AS dt
+) d
+JOIN <db>.<source_text_table> src ON src.<id_col> = d.reference_id
+CROSS JOIN input_question q
+ORDER BY d.distance ASC;
+```
+
+**Key design decisions:**
+- `TD_BYONE()` — ensures the single input row routes to one AMP; without it, `AI_TEXTEMBEDDINGS` may receive an empty partition on some AMPs and fail
+- `PARTITION BY p` in `AI_TEXTEMBEDDINGS` — pairs with `TD_BYONE()` to route consistently
+- Query embedding goes as `TargetTable`; corpus goes as `ReferenceTable DIMENSION` — the corpus is broadcast and TopK nearest corpus items are returned for the single query row
+- `TD_VectorNormalize(Approach('UNITVECTOR'))` must be applied at **both build time and query time** — cosine distance on unnormalized vectors gives wrong results
+- `CROSS JOIN input_question` — carries the original question text into the final output without an extra lookup
+
+---
+
+### Building the Corpus Embedding Table
+
+Build once; reuse at query time. The model name, provider, and `EmbeddingSize` must exactly match the query pipeline above.
+
+```sql
+CREATE TABLE <db>.<corpus_embeddings_table> AS (
+    SELECT * FROM TD_VectorNormalize(
+        ON (
+            SELECT txt, id, Embedding, Embedding AS Embedding_Normalized
+            FROM AI_TEXTEMBEDDINGS(
+                ON (
+                    SELECT <text_col> AS txt, <id_col> AS id, TD_BYONE() AS p
+                    FROM <db>.<source_text_table>
+                    -- Add TOP N or WHERE clause if batching is needed
+                ) AS InputTable
+                PARTITION BY p
+                USING
+                    Authorization(<auth_object>)
+                    apitype('<provider>')
+                    region('<region>')
+                    modelname('<model_name>')
+                    modelargs('{}')
+                    textcolumn('txt')
+                    outputformat('vector')
+                    refreshcredentialtimeseconds('3600')
+            ) AS ve
+        ) AS InputTable
+        USING
+            IDColumns('id')
+            TargetColumns('Embedding_Normalized')
+            Approach('UNITVECTOR')
+            Accumulate('txt', 'Embedding')
+            EmbeddingSize(<embedding_dim>)
+    ) AS d
+) WITH DATA;
+```
+
+> **Batching large tables:** `AI_TEXTEMBEDDINGS` has row limits per call. For large source tables, use `TOP N` with a loop or batch by partition, writing results into the corpus table incrementally.
+
+---
+
+### Checklist
+
+- [ ] Corpus embeddings table built with same model, provider, and `EmbeddingSize` as query
+- [ ] Both corpus and query normalized with `TD_VectorNormalize(Approach('UNITVECTOR'))`
+- [ ] `TD_BYONE()` + `PARTITION BY p` used in the query pipeline for the single input row
+- [ ] `DistanceMeasure('cosine')` — appropriate for unit-normalized vectors
+- [ ] `<corpus_embeddings_table>` passed as `ReferenceTable DIMENSION`
+- [ ] Final `JOIN` back to source text table to retrieve human-readable results
