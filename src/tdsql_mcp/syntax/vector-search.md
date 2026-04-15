@@ -4,6 +4,8 @@ Functions for computing vector distances and building approximate nearest-neighb
 
 > **Pre-processing tip:** Normalize embeddings to unit length with `TD_VectorNormalize(Approach('UNITVECTOR'))` before computing cosine distances or building an HNSW index. Unit-normalized vectors make cosine distance equivalent to dot product distance and improve index quality. See `data-prep` topic.
 
+> **Dimension introspection:** To get the number of dimensions in a VECTOR column, use the `.LENGTH()` method — do not infer from UDT byte size. `SELECT embedding.LENGTH() AS dims FROM db.embeddings SAMPLE 1;` See `data-types-casting` topic for full VECTOR type reference.
+
 ---
 
 ## TD_VectorDistance
@@ -394,6 +396,99 @@ ORDER BY Distance ASC;
 | Update | Incremental (TD_HNSW AlterOperation) | Re-cluster periodically |
 
 > **Tip:** increase Y (clusters searched in Step 2) to improve recall at the cost of search time. A good starting point is Y = sqrt(K).
+
+---
+
+## Full Corpus Build Workflow: Text → Embed → Normalize → Store
+
+Use this pattern to build a vector embedding table from a source table of text documents. The output is a normalized embedding table ready for `TD_VectorDistance` or `TD_HNSW` search.
+
+```sql
+-- ── Step 1: build the normalized embedding table (CTAS) ──────────────────────
+-- AI_TEXTEMBEDDINGS calls the external embedding API.
+-- TD_VectorNormalize converts raw embeddings to unit vectors for cosine search.
+-- TD_BYONE() + PARTITION BY p routes rows to a single AMP per batch call.
+CREATE TABLE <db>.<corpus_embeddings_table> AS (
+    SELECT * FROM TD_VectorNormalize(
+        ON (
+            SELECT <text_col> AS txt, <id_col> AS id, Embedding, Embedding AS Embedding_Normalized
+            FROM AI_TEXTEMBEDDINGS(
+                ON (
+                    SELECT <text_col>, <id_col>, TD_BYONE() AS p
+                    FROM <db>.<source_text_table>
+                    -- For large tables, add TOP N or a WHERE clause and repeat in batches
+                ) AS InputTable
+                PARTITION BY p
+                USING
+                    Authorization(<auth_object>)
+                    apitype('<provider>')             -- 'aws' | 'azure' | 'openai' | 'gcp' | 'nim' | 'litellm'
+                    region('<region>')                -- e.g. 'us-east-1'; omit for non-AWS
+                    modelname('<model_name>')         -- e.g. 'amazon.titan-embed-text-v2:0'
+                    modelargs('{}')
+                    textcolumn('txt')
+                    outputformat('vector')
+                    refreshcredentialtimeseconds('3600')
+            ) AS ve
+        ) AS InputTable
+        USING
+            IDColumns('id')
+            TargetColumns('Embedding_Normalized')
+            Approach('UNITVECTOR')
+            Accumulate('txt', 'Embedding')
+            EmbeddingSize(<embedding_dim>)            -- must match model output dimension
+    ) AS d
+) WITH DATA;
+
+-- ── Step 2: verify dimensions and row count ───────────────────────────────────
+-- Use .LENGTH() to confirm embedding dimensions — do not infer from byte size.
+SELECT Embedding_Normalized.LENGTH() AS dims, COUNT(*) AS row_count
+FROM <db>.<corpus_embeddings_table>
+GROUP BY 1;
+
+-- ── Step 3 (optional): build an HNSW index for fast approximate search ────────
+SELECT * FROM TD_HNSW(
+    ON <db>.<corpus_embeddings_table> AS InputTable
+    OUT PERMANENT TABLE ModelTable(<db>.<hnsw_index_table>)
+    USING
+        IdColumn('id')
+        VectorColumn('Embedding_Normalized')
+        DistanceMeasure('cosine')
+        EfConstruction(64)
+        NumConnPerNode(32)
+) AS t;
+```
+
+**Batching large tables:** `AI_TEXTEMBEDDINGS` has a row limit per call. For large source tables, embed in batches using `TOP N` with `WHERE id > last_id` and insert results incrementally:
+
+```sql
+-- Batch insert pattern
+INSERT INTO <db>.<corpus_embeddings_table>
+SELECT * FROM TD_VectorNormalize(
+    ON (
+        SELECT txt, id, Embedding, Embedding AS Embedding_Normalized
+        FROM AI_TEXTEMBEDDINGS(
+            ON (
+                SELECT <text_col> AS txt, <id_col> AS id, TD_BYONE() AS p
+                FROM <db>.<source_text_table>
+                WHERE <id_col> BETWEEN <batch_start> AND <batch_end>
+            ) AS InputTable
+            PARTITION BY p
+            USING
+                Authorization(<auth_object>)
+                apitype('<provider>')
+                modelname('<model_name>')
+                textcolumn('txt')
+                outputformat('vector')
+        ) AS ve
+    ) AS InputTable
+    USING
+        IDColumns('id')
+        TargetColumns('Embedding_Normalized')
+        Approach('UNITVECTOR')
+        Accumulate('txt', 'Embedding')
+        EmbeddingSize(<embedding_dim>)
+) AS d;
+```
 
 ---
 
