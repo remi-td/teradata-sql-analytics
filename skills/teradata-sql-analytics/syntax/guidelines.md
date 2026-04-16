@@ -203,6 +203,12 @@ Native functions distribute across all AMPs. The result set returned to the agen
 | External approximate nearest neighbor index | `TD_HNSW` / `TD_HNSWPredict` | `vector-search` |
 | External embedding storage type | `VECTOR` / `Vector32` data type | `data-types-casting` |
 
+**Inline NL Query → Embedding → Vector Search:** For RAG retrieval, use the full CTE pipeline pattern — embed the query inline with `AI_TEXTEMBEDDINGS`, normalize with `TD_VectorNormalize(Approach('UNITVECTOR'))`, and search with `TD_VectorDistance` against a pre-built corpus embedding table, all in a single SQL statement. See `vector-search` topic, "Inline NL Query → Embedding → Vector Search Pipeline" section.
+
+**Building a corpus embedding table:** Use the full workflow: source text table → `AI_TEXTEMBEDDINGS` → `TD_VectorNormalize(Approach('UNITVECTOR'))` → CTAS. See `vector-search` topic, "Full Corpus Build Workflow" section.
+
+**Vector dimension introspection:** Use `embedding.LENGTH()` to get the number of dimensions from a VECTOR column — never infer from UDT byte size. `SELECT embedding.LENGTH() AS dims FROM db.table SAMPLE 1;`
+
 ### Statistical Testing
 
 | Instead of this | Use this (native function) | Topic |
